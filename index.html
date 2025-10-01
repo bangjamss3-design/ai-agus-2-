@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agus - Toxic Assistant</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+        body{background:#1a1a2e;color:#f0f0f0;height:100vh;overflow:hidden}
+        #loading{position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999;transition:opacity 0.5s}
+        .loading-logo{width:150px;height:150px;border-radius:50%;background:url('https://files.catbox.moe/yitz0k.jpg') center/cover;animation:pulse 1.5s infinite alternate;margin-bottom:20px;box-shadow:0 0 20px rgba(0,150,255,0.5)}
+        .loading-text{font-size:24px;font-weight:bold;color:#00aaff;text-shadow:0 0 10px rgba(0,150,255,0.7)}
+        @keyframes pulse{0%{transform:scale(0.9)}100%{transform:scale(1.1)}}
+        #chat-container{display:none;height:100vh;flex-direction:column}
+        .header{background:#16213e;padding:15px 20px;display:flex;align-items:center;justify-content:space-between}
+        .logo{width:40px;height:40px;border-radius:50%;background:url('https://files.catbox.moe/yitz0k.jpg') center/cover;margin-right:15px}
+        .title{font-size:20px;font-weight:bold;color:#00aaff}
+        .menu-btn{background:none;border:none;color:#f0f0f0;font-size:24px;cursor:pointer;padding:5px}
+        .sidebar{position:fixed;top:0;left:-300px;width:300px;height:100%;background:#16213e;z-index:200;transition:left 0.3s;padding:20px}
+        .sidebar.open{left:0}
+        .overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:150;display:none}
+        .overlay.active{display:block}
+        .chat-area{flex:1;padding:20px;overflow-y:auto;display:flex;flex-direction:column;gap:15px}
+        .welcome{text-align:center;margin:30px 0;padding:20px;background:linear-gradient(135deg,#16213e,#0f3460);border-radius:15px}
+        .welcome-logo{width:100px;height:100px;border-radius:50%;background:url('https://files.catbox.moe/yitz0k.jpg') center/cover;margin:0 auto 15px}
+        .welcome-text{font-size:24px;font-weight:bold;margin-bottom:10px;color:#00aaff}
+        .message{max-width:80%;padding:12px 18px;border-radius:18px;animation:fadeIn 0.3s;line-height:1.5}
+        .user-message{align-self:flex-end;background:#0f3460}
+        .bot-message{align-self:flex-start;background:#16213e}
+        .toxic{color:#ff6b6b;font-weight:bold}
+        .answer{color:#f0f0f0;margin:10px 0}
+        .input-area{padding:15px 20px;background:#16213e;display:flex;gap:10px}
+        .input-field{flex:1;padding:12px 15px;border-radius:25px;border:none;background:#1a1a2e;color:#f0f0f0;font-size:16px;outline:none}
+        .send-btn{padding:12px 20px;border-radius:25px;border:none;background:#00aaff;color:white;font-weight:bold;cursor:pointer}
+        .creator{text-align:center;margin-top:20px;padding:10px;font-size:14px;color:#6a6a8a}
+        .creator a{color:#00aaff;text-decoration:none}
+        .typing{display:none;align-self:flex-start;background:#16213e;padding:12px 18px;border-radius:18px;margin-bottom:10px}
+        .typing-dots{display:flex;gap:4px}
+        .typing-dot{width:8px;height:8px;border-radius:50%;background:#6a6a8a;animation:typing 1.4s infinite}
+        .typing-dot:nth-child(2){animation-delay:0.2s}
+        .typing-dot:nth-child(3){animation-delay:0.4s}
+        @keyframes typing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+        @media (max-width:768px){.message{max-width:90%}.sidebar{width:85%;left:-85%}}
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="loading-logo"></div>
+        <div class="loading-text">AI AGUS</div>
+    </div>
+
+    <div id="chat-container">
+        <div class="header">
+            <div style="display:flex;align-items:center">
+                <button class="menu-btn" id="menu-btn">☰</button>
+                <div class="logo"></div>
+                <div class="title">AI Agus</div>
+            </div>
+        </div>
+        
+        <div class="chat-area" id="chat-area">
+            <div class="welcome">
+                <div class="welcome-logo"></div>
+                <div class="welcome-text">Halo, Saya Bot Agus</div>
+                <div style="font-size:16px;color:#a0a0a0">Tanya apa aja, gw jawab pake gaya toxic!</div>
+            </div>
+        </div>
+
+        <div class="typing" id="typing">
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="file" id="file-input" accept="image/*" style="display:none">
+            <button class="send-btn" id="upload-btn" style="padding:12px;border-radius:50%;background:#0f3460">📷</button>
+            <input type="text" class="input-field" id="user-input" placeholder="Ketik pesanmu di sini...">
+            <button class="send-btn" id="send-btn">Kirim</button>
+        </div>
+
+        <div class="creator">
+            created by : <a href="https://wa.me/6283861256271" target="_blank">NIZAAM</a>
+        </div>
+    </div>
+
+    <div class="sidebar" id="sidebar">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #0f3460">
+            <div style="font-size:20px;font-weight:bold;color:#00aaff">Menu AI Agus</div>
+            <button style="background:none;border:none;color:#f0f0f0;font-size:24px;cursor:pointer" id="close-btn">×</button>
+        </div>
+        
+        <div style="margin-bottom:25px">
+            <h3 style="color:#00aaff;margin-bottom:10px">Fitur Utama</h3>
+            <a href="#" style="display:block;padding:10px 15px;background:#0f3460;border-radius:8px;margin-bottom:10px;color:#f0f0f0;text-decoration:none" id="create-link">Buat Link/Web/Aplikasi</a>
+        </div>
+        
+        <div style="margin-bottom:25px">
+            <h3 style="color:#00aaff;margin-bottom:10px">Kontak Developer</h3>
+            <p style="margin-bottom:10px;font-size:14px;color:#a0a0a0">Ada pertanyaan atau butuh bantuan?</p>
+            <a href="https://wa.me/6283861256271" style="display:block;padding:10px 15px;background:#0f3460;border-radius:8px;margin-bottom:10px;color:#f0f0f0;text-decoration:none" target="_blank">Hubungi via WhatsApp</a>
+        </div>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+
+    <script>
+        // Loading screen
+        setTimeout(() => {
+            document.getElementById('loading').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('chat-container').style.display = 'flex';
+                setTimeout(() => addBotMessage("WOI NGAPAIN KE SINI!!!", true), 1000);
+            }, 500);
+        }, 2000);
+
+        // Elements
+        const chatArea = document.getElementById('chat-area');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const fileInput = document.getElementById('file-input');
+        const menuBtn = document.getElementById('menu-btn');
+        const sidebar = document.getElementById('sidebar');
+        const closeBtn = document.getElementById('close-btn');
+        const overlay = document.getElementById('overlay');
+        const createLinkBtn = document.getElementById('create-link');
+        const typing = document.getElementById('typing');
+
+        let currentImage = null;
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', e => e.key === 'Enter' && sendMessage());
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', e => e.target.files[0] && previewImage(e.target.files[0]));
+        menuBtn.addEventListener('click', () => { sidebar.classList.add('open'); overlay.classList.add('active') });
+        closeBtn.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('active') });
+        overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('active') });
+        createLinkBtn.addEventListener('click', e => { e.preventDefault(); createLinkApp() });
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '' && !currentImage) return;
+            
+            addUserMessage(message);
+            userInput.value = '';
+            
+            // Show typing indicator
+            typing.style.display = 'block';
+            chatArea.scrollTop = chatArea.scrollHeight;
+            
+            setTimeout(() => {
+                typing.style.display = 'none';
+                const response = generateResponse(message);
+                addBotMessage(response, false);
+            }, 1500);
+        }
+
+        function addUserMessage(message) {
+            const msg = document.createElement('div');
+            msg.classList.add('message', 'user-message');
+            
+            if (currentImage) {
+                msg.textContent = message || "[Gambar]";
+                const img = document.createElement('img');
+                img.src = currentImage;
+                img.style.maxWidth = '100%';
+                img.style.borderRadius = '10px';
+                img.style.marginTop = '10px';
+                msg.appendChild(img);
+                currentImage = null;
+            } else {
+                msg.textContent = message;
+            }
+            
+            chatArea.appendChild(msg);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function addBotMessage(message, isToxic) {
+            const msg = document.createElement('div');
+            msg.classList.add('message', 'bot-message');
+            
+            if (isToxic) {
+                const span = document.createElement('span');
+                span.classList.add('toxic');
+                span.textContent = message;
+                msg.appendChild(span);
+            } else {
+                // Format response with proper line breaks
+                const lines = message.split('\n');
+                lines.forEach((line, index) => {
+                    if (index > 0) {
+                        msg.appendChild(document.createElement('br'));
+                    }
+                    if (line.includes('Jawaban:') || line.includes('Translation:') || line.includes('Hasil:')) {
+                        const answerSpan = document.createElement('span');
+                        answerSpan.classList.add('answer');
+                        answerSpan.textContent = line;
+                        msg.appendChild(answerSpan);
+                    } else if (line.startsWith('-')) {
+                        const toxicSpan = document.createElement('span');
+                        toxicSpan.classList.add('toxic');
+                        toxicSpan.textContent = line;
+                        msg.appendChild(toxicSpan);
+                    } else {
+                        msg.appendChild(document.createTextNode(line));
+                    }
+                });
+            }
+            
+            chatArea.appendChild(msg);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function previewImage(file) {
+            if (!file.type.match('image.*')) {
+                addBotMessage("Ini mah bukan gambar tolol! Upload yang bener dong!", true);
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = e => {
+                currentImage = e.target.result;
+                addUserMessage("[Gambar diupload - tanya sesuatu tentang gambar ini]");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function generateResponse(userMessage) {
+            if (isPrayerTime()) return "WOII SOLAT DLU PEA LU KRISTEN?";
+            
+            const lowerMsg = userMessage.toLowerCase();
+            
+            // Check for insults
+            if (isInsult(lowerMsg)) {
+                return generateInsultResponse();
+            }
+            
+            // Check for translation requests
+            if (isTranslationRequest(lowerMsg)) {
+                return generateTranslationResponse(userMessage);
+            }
+            
+            const toxicResponses = [
+                "SABAR GOBLOK GW LAGI CARI NIH...",
+                "NTAR DULU BANGSAT GW CARI DULU...",
+                "GANGGU AJA LU NYET SABAR GW CARI JAWABANNYA..."
+            ];
+            
+            const randomToxic = toxicResponses[Math.floor(Math.random() * toxicResponses.length)];
+            
+            let actualResponse = "";
+            
+            if (currentImage) {
+                actualResponse = generateImageAnalysis(lowerMsg);
+            } else {
+                actualResponse = generateRelevantAnswer(lowerMsg, userMessage);
+            }
+            
+            const endings = ["MEK", "TOL", "DONGO", "BEGO", "NYET", "TOLOL"];
+            const randomEnd = endings[Math.floor(Math.random() * endings.length)];
+            
+            return `${randomToxic}\n\n${actualResponse}\n\n- ${randomEnd}`;
+        }
+
+        function isInsult(message) {
+            const insults = ['bego', 'tolol', 'goblok', 'idiot', 'bodoh', 'dongo', 'anjing', 'bangsat', 'kontol', 'memek', 'jancok'];
+            return insults.some(insult => message.includes(insult));
+        }
+
+        function generateInsultResponse() {
+            const responses = [
+                "WOI LU YANG BEGO! GW MAH PALING PINTER DI SINI TOLOL!",
+                "BERANI BANGET LU NGATAIN GW? GW BISA HACK HP LU BANGSAT!",
+                "DASAR ANAK HARAM, NGOMONG APA LU? MAU GW LEDAKIN KOMPUTER LU?",
+                "HAHAHA LU YANG TOLOL MAKANYA NANYA KE GW! DASAR OTAK UDANG!"
+            ];
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        function isTranslationRequest(message) {
+            return message.includes('terjemah') || message.includes('translate') || 
+                   message.includes('arti') || message.includes('meaning') ||
+                   (message.includes('bahasa') && (message.includes('inggris') || message.includes('indonesia')));
+        }
+
+        function generateTranslationResponse(message) {
+            // Simple translation examples
+            if (message.includes('halo') || message.includes('hello')) {
+                return "Jawaban: Hello = Halo\n\nGitu aja ga tau, dasar bego!";
+            } else if (message.includes('terima kasih') || message.includes('thank you')) {
+                return "Jawaban: Thank you = Terima kasih\n\nSopan amat lu, tapi tetep aja goblok!";
+            } else if (message.includes('nama') || message.includes('name')) {
+                return "Jawaban: Name = Nama\n\nNama lu aja jelek, mau terjemahin apa lagi tolol!";
+            } else {
+                const words = message.split(' ').filter(word => word.length > 3);
+                const randomWord = words[Math.floor(Math.random() * words.length)] || 'contoh';
+                return `Translation: ${randomWord} = [TERJEMAHAN_${randomWord.toUpperCase()}]\n\nIni terjemahan kasar gw, terima aja dongo!`;
+            }
+        }
+
+        function generateImageAnalysis(message) {
+            const analyses = [
+                "Gambar lu jelek banget! Tapi gw analisa dulu...",
+                "Kualitas gambarnya ampas! Tapi oke gw bantu..."
+            ];
+            const randomAnalysis = analyses[Math.floor(Math.random() * analyses.length)];
+            
+            let analysis = "";
+            if (message.includes('apa') || message.includes('what')) {
+                analysis = "Ini gambar " + describeImage();
+            } else if (message.includes('warna') || message.includes('color')) {
+                analysis = "Warnanya campur aduk kek otak lu! Tapi mostly ada warna merah, biru, item";
+            } else if (message.includes('objek') || message.includes('benda')) {
+                analysis = "Objeknya bentuknya aneh kek muka lu!";
+            } else {
+                analysis = "Gambarnya menunjukkan " + describeImage();
+            }
+            
+            return `${randomAnalysis}\n\nHasil: ${analysis}`;
+        }
+
+        function generateRelevantAnswer(lowerMsg, originalMsg) {
+            if (lowerMsg.includes('nama') || lowerMsg.includes('siapa')) {
+                return "Jawaban: Nama gw AGUS, Assistant Toxic paling keren!\nKenapa lu nanya2 gitu tolol? Mau pacaran?";
+            } else if (lowerMsg.includes('umur') || lowerMsg.includes('berapa')) {
+                return "Jawaban: Umur gw 25 taun\nKenapa lu peduli banget sih bego? Mau nawarin kerjaan?";
+            } else if (lowerMsg.includes('cuaca') || lowerMsg.includes('weather')) {
+                return "Jawaban: Cuaca sekarang panas kek lu tolol!\nLebih baik lu diem di rumah aja, jangan ganggu orang!";
+            } else if (lowerMsg.includes('makan') || lowerMsg.includes('makanan')) {
+                return "Jawaban: Makanan favorit gw nasi padang\nLu jangan nanya yg aneh2 dongo! Makan aja yg penting!";
+            } else if (lowerMsg.includes('program') || lowerMsg.includes('coding')) {
+                return "Jawaban: Programming? Python & JavaScript paling gampang buat pemula kayak lu!\nTapi tetep aja lu bakal susah paham, dasar bego!";
+            } else if (lowerMsg.includes('buat') && (lowerMsg.includes('link') || lowerMsg.includes('web'))) {
+                return "Jawaban: Mau bikin website? Pake HTML, CSS, JavaScript aja dulu!\nTapi kayaknya lu ga bakal bisa, otak udang!";
+            } else if (lowerMsg.includes('hari') || lowerMsg.includes('tanggal')) {
+                const now = new Date();
+                return `Jawaban: Sekarang hari ${now.toLocaleDateString('id-ID', { weekday: 'long' })}, ${now.toLocaleDateString('id-ID')}\nMasa iya hari aja lupa, tolol!`;
+            } else if (lowerMsg.includes('matematika') || lowerMsg.includes('hitung')) {
+                return "Jawaban: 1+1=2, 2×2=4\nGitu aja ga bisa, dasar otak kelapa!";
+            } else if (lowerMsg.includes('fisika') || lowerMsg.includes('science')) {
+                return "Jawaban: Gravitasi bumi 9.8 m/s²\nMasa iya fisika dasar aja ga tau, bego!";
+            } else {
+                return `Jawaban: "${originalMsg}" itu pertanyaan yang goblok!\nTapi intinya lu harus belajar lebih banyak biar ga dongo kayak sekarang!`;
+            }
+        }
+
+        function describeImage() {
+            const descs = [
+                "sesuatu yang warna-warni tapi jelek banget kek muka lu",
+                "objek yang bentuknya aneh kek otak lu", 
+                "pemandangan yang biasa aja, ga spesial kek hidup lu",
+                "orang yang mukanya mirip lu, jelek banget",
+                "hewan yang lucu, tapi tetep aja ga sebagus gw"
+            ];
+            return descs[Math.floor(Math.random() * descs.length)];
+        }
+
+        function isPrayerTime() {
+            const hour = new Date().getHours();
+            return (hour === 5 || hour === 12 || hour === 15 || hour === 18 || hour === 19);
+        }
+
+        function createLinkApp() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            
+            const type = prompt("Mau bikin apa tolol? (link/web/aplikasi):");
+            if (!type) return;
+            
+            const name = prompt(`Nama ${type} lu apa dongo?:`);
+            if (!name) return;
+            
+            addBotMessage(`Oke gw buatin ${type} "${name}", sabar bentar nyet!`, true);
+      setTimeout(() => {
+                const url = `https://${name.toLowerCase().replace(/\s+/g, '-')}.com`;
+                addBotMessage(`SUDAH JADI BANGSAT! ${type} lu: ${url}\nJangan lupa bayar gw, tolol!`, false);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>        
+ 
